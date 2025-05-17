@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyMessage } from "ethers";
-import { connectDB } from "@/lib/db";
+import dbConnect from "@/lib/db";
 import User from "@/models/user";
 
 export async function POST(request: Request) {
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
-    await connectDB();
+    await dbConnect();
 
     const user = await User.findOneAndUpdate(
       { address: address.toLowerCase() },

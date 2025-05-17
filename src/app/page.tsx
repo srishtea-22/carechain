@@ -1,77 +1,76 @@
 "use client";
 
-import { useState } from "react";
-import useWallet from "@/hooks/useWallet";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { useRouter } from 'next/navigation';
-
+import useWallet from "@/hooks/useWallet";
 
 export default function Page() {
   const { address, connectWallet, signMessage } = useWallet();
+  const [form, setForm] = useState({ name: "", email: "", role: "" });
+  const [message] = useState("Login to CareChain");
+  const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
   const router = useRouter();
 
-  const [form, setForm] = useState({ name: "", email: "", role: "" });
-  const [signature, setSignature] = useState<string | null>(null);
-  const [message] = useState("Login to CareChain");
-  const [status, setStatus] = useState<string | null>(null);
+  // Check if user is already registered
+  useEffect(() => {
+    if (!address) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/check-user?address=${address}`);
+        const data = await res.json();
+        if (res.ok && data.registered) {
+          sessionStorage.setItem("walletAddress", address);
+          router.push(`/dashboard/${data.role}`);
+        } else {
+          setIsRegistered(false);
+        }
+      } catch (err) {
+        toast.error("Failed to check registration");
+      }
+    })();
+  }, [address]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleSignAndSubmit = async () => {
-    if (!address) return alert("Connect wallet first");
-    if (!form.name || !form.email || !form.role) return alert("Fill all fields");
+    if (!address) return toast.error("Connect wallet first");
+    if (!form.name || !form.email || !form.role) return toast.error("Fill all fields");
 
     const sig = await signMessage(message);
-    if (!sig) return alert("Signing failed");
-    setSignature(sig);
+    if (!sig) return toast.error("Signing failed");
 
     const res = await fetch("/api/auth", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        address, 
-        signature: sig, 
-        message, 
-        name: form.name, 
-        email: form.email, 
-        role: form.role 
+      body: JSON.stringify({
+        address,
+        signature: sig,
+        message,
+        name: form.name,
+        email: form.email,
+        role: form.role,
       }),
     });
 
-    // const data = await res.json();
-    // if (res.ok) setStatus("Login successful!");
-    // else setStatus(`Error: ${data.error || "Unknown error"}`);
     const data = await res.json();
-if (res.ok) {
-  toast.success("Login successful!");
-  switch (form.role) {
-    case "patient":
-      router.push("/dashboard/patient");
-      break;
-    case "doctor":
-      router.push("/dashboard/doctor");
-      break;
-    case "donor":
-      router.push("/dashboard/donor");
-      break;
-    case "admin":
-      router.push("/dashboard/admin");
-      break;
-    default:
-      router.push("/");
-  }
-} else {
-  toast.error(data.error || "Unknown error");
-}
+
+    if (res.ok) {
+      toast.success("Registered & Logged in!");
+      sessionStorage.setItem("walletAddress", address);
+      router.push(`/dashboard/${form.role}`);
+    } else {
+      toast.error(data.error || "Unknown error");
+    }
   };
 
   return (
     <main className="p-8 max-w-md mx-auto">
       {!address ? (
         <button onClick={connectWallet} className="btn">Connect MetaMask</button>
-      ) : (
+      ) : isRegistered === false ? (
         <>
           <p>Connected wallet: {address}</p>
 
@@ -104,13 +103,9 @@ if (res.ok) {
           <button onClick={handleSignAndSubmit} className="btn mt-4">
             Sign & Submit
           </button>
-
-          {signature && (
-            <p className="mt-2 break-all text-sm">Signature: {signature}</p>
-          )}
-
-          {status && <p className="mt-4">{status}</p>}
         </>
+      ) : (
+        <p className="text-center">Checking registration...</p>
       )}
     </main>
   );
