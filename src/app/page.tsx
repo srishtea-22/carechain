@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 import useWallet from "@/hooks/useWallet";
+import { toast } from "react-toastify";
+import { useRouter } from 'next/navigation';
+
 
 export default function Page() {
   const { address, connectWallet, signMessage } = useWallet();
+  const router = useRouter();
 
   const [form, setForm] = useState({ name: "", email: "", role: "" });
   const [signature, setSignature] = useState<string | null>(null);
@@ -36,9 +40,31 @@ export default function Page() {
       }),
     });
 
+    // const data = await res.json();
+    // if (res.ok) setStatus("Login successful!");
+    // else setStatus(`Error: ${data.error || "Unknown error"}`);
     const data = await res.json();
-    if (res.ok) setStatus("Login successful!");
-    else setStatus(`Error: ${data.error || "Unknown error"}`);
+if (res.ok) {
+  toast.success("Login successful!");
+  switch (form.role) {
+    case "patient":
+      router.push("/dashboard/patient");
+      break;
+    case "doctor":
+      router.push("/dashboard/doctor");
+      break;
+    case "donor":
+      router.push("/dashboard/donor");
+      break;
+    case "admin":
+      router.push("/dashboard/admin");
+      break;
+    default:
+      router.push("/");
+  }
+} else {
+  toast.error(data.error || "Unknown error");
+}
   };
 
   return (
